@@ -1,9 +1,7 @@
 # ultimai
 
 Gal -
-1. Server Host with Coreweave
-2. Docker VM
+1. OpenAI based AI Agent with custom functions
 
 Ofek
-1. Sketch
-2. Application workflow
+1. GPU Instance LLM with open webui + custom functions
