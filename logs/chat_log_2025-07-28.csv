@@ -1,3 +1,0 @@
-timestamp,user_input,ai_reply
-2025-07-28 15:08:25,whats the date today?,Today's date is {{sys.date()}).
-2025-07-28 15:17:08,what is the current price of bitcoin in ils?,"The current price of Bitcoin in Israeli Shekels (ILS) is approximately 399,032 ILS. Please note that cryptocurrency prices are highly volatile and can change rapidly."
