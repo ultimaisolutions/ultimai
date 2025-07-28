@@ -7,24 +7,25 @@ import csv
 import dotenv
 import streamlit as st
 
-# 📌 Set Streamlit page config
-st.set_page_config(page_title="Bot Function Assistant", layout="centered")
-st.title("🤖 Bot Function Assistant")
+# Streamlit Page Config
+st.set_page_config(page_title="AI Chat with Tools", layout="centered")
+st.title("💬 AI Chat Assistant with Tools")
 
-# 📁 Ensure logs directory
+# Ensure logs directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_DIR = os.path.join(BASE_DIR, "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
-# 🔐 Load API Keys from .env
+# Load API keys
 dotenv.load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 alpha_vantage_key = os.getenv("ALPHA_VANTAGE_API_KEY")
 
-# ✅ Initialize OpenAI client
+# OpenAI client
 client = openai.OpenAI()
 
-# 📊 Stock tool
+# ---- Utility Functions ----
+
 def get_stock_daily(symbol: str) -> dict:
     url = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&apikey={alpha_vantage_key}'
     r = requests.get(url)
@@ -43,7 +44,6 @@ def get_stock_daily(symbol: str) -> dict:
         "volume": latest_data["5. volume"],
     }
 
-# 💰 Crypto tool
 def get_crypto_price(coin: str, currency: str) -> dict:
     url = f"https://api.coingecko.com/api/v3/simple/price"
     params = {"ids": coin.lower(), "vs_currencies": currency.lower()}
@@ -57,7 +57,6 @@ def get_crypto_price(coin: str, currency: str) -> dict:
         "price": data[coin.lower()][currency.lower()]
     }
 
-# 📝 Function definitions for OpenAI
 function_definitions = [
     {
         "name": "get_stock_daily",
@@ -93,13 +92,11 @@ function_definitions = [
     }
 ]
 
-# 🧰 Tool routing
 tools = {
     "get_stock_daily": get_stock_daily,
     "get_crypto_price": get_crypto_price
 }
 
-# 🗂️ Log conversations
 def log_interaction(user_input, ai_reply):
     today = datetime.date.today().strftime("%Y-%m-%d")
     log_path = os.path.join(LOG_DIR, f"chat_log_{today}.csv")
@@ -114,7 +111,6 @@ def log_interaction(user_input, ai_reply):
     except Exception as e:
         st.error(f"Failed to log interaction: {e}")
 
-# 🔁 Run a conversation using OpenAI function calling
 def run_conversation(user_input):
     messages = [{"role": "user", "content": user_input}]
     response = client.chat.completions.create(
@@ -124,6 +120,7 @@ def run_conversation(user_input):
         function_call="auto"
     )
     message = response.choices[0].message
+
     if message.function_call:
         func_name = message.function_call.name
         args = json.loads(message.function_call.arguments)
@@ -148,13 +145,35 @@ def run_conversation(user_input):
     log_interaction(user_input, reply)
     return reply
 
-# 🧾 Streamlit UI
-with st.form("chat_form"):
-    user_input = st.text_input("Ask me something", placeholder="e.g. What is the current price of bitcoin in USD?")
-    submitted = st.form_submit_button("Submit")
+# ---- Session State ----
 
-if submitted and user_input:
-    with st.spinner("Thinking..."):
-        reply = run_conversation(user_input)
-        st.markdown("### 🤖 Response:")
-        st.markdown(reply)
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+# ---- Chat Display ----
+
+for entry in st.session_state.chat_history:
+    with st.chat_message("user"):
+        st.markdown(entry["user"])
+    with st.chat_message("assistant"):
+        st.markdown(entry["bot"])
+
+# ---- Chat Input ----
+
+user_prompt = st.chat_input("Ask me anything...")
+
+if user_prompt:
+    with st.chat_message("user"):
+        st.markdown(user_prompt)
+
+    with st.spinner("🤖 Thinking..."):
+        bot_response = run_conversation(user_prompt)
+
+    with st.chat_message("assistant"):
+        st.markdown(bot_response)
+
+    # Store in history
+    st.session_state.chat_history.append({
+        "user": user_prompt,
+        "bot": bot_response
+    })
