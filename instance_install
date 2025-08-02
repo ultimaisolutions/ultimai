@@ -1,0 +1,43 @@
+DOCKER IMAGE: ultimai/n8n-ollama:latest
+
+
+PREREQUESITES:
+curl -sSL https://get.docker.com | sh
+sudo apt-get install -y nvidia-container-toolkit
+sudo systemctl restart docker
+
+IMPORTANT FILES:
+entrypoint.sh
+cd ~/n8n-ollama-image
+supervisord.conf
+Dockerfile
+
+NEW START UP SCRIPT:
+
+# 0) DNS A-record already points n8n.clientwebsite.com ➜ this VM’s public IP
+
+# 1) install Docker & NVIDIA toolkit (one-liners – same as before)
+curl -sSL https://get.docker.com | sh
+sudo apt-get install -y nvidia-container-toolkit
+sudo systemctl restart docker
+
+# 2) load the image you built earlier, if it isn’t on Docker Hub
+docker load < n8n-ollama-v2.tar   # or `docker pull ultimai/n8n-ollama:v2`
+
+# 3) run the container, pointing to the new domain
+docker run --gpus all -d --name n8n-ollama \
+  -p 80:80 -p 443:443 \
+  -v n8n_data:/root/.n8n \
+  -v letsencrypt_data:/etc/letsencrypt \
+  -e N8N_HOST=n8n.clientwebsite.com \
+  ultimai/n8n-ollama:v2
+
+# 4) obtain the first TLS certificate
+docker exec -it n8n-ollama certbot certonly \
+  --nginx \
+  -d n8n.clientwebsite.com \
+  --email clientemail@business.com \
+  --agree-tos --no-eff-email
+
+# 5) reload nginx inside the container to start using the cert
+docker exec n8n-ollama nginx -s reload
