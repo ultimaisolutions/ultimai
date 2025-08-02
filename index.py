@@ -52,7 +52,8 @@ def login_ui():
 
 # ------------------ Conversation with LLM ------------------
 def conversation(chat_id, prompt):
-    url = f"{os.getenv("N8N_WEBHOOK_URL")}/{chat_id}/{prompt}"
+    WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL")
+    url = f"{WEBHOOK_URL}/{chat_id}/{prompt}"
     try:
         response = requests.get(url)
         response.raise_for_status()
