@@ -1,179 +1,135 @@
-import openai
+import streamlit as st
+import db
+import datetime
+import os
+import dotenv
 import requests
 import json
-import os
-import datetime
-import csv
-import dotenv
-import streamlit as st
 
-# Streamlit Page Config
-st.set_page_config(page_title="AI Chat with Tools", layout="centered")
-st.title("💬 AI Chat Assistant with Tools")
-
-# Ensure logs directory
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-LOG_DIR = os.path.join(BASE_DIR, "logs")
-os.makedirs(LOG_DIR, exist_ok=True)
-
-# Load API keys
+# Load API keys (if needed for other services)
 dotenv.load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
-alpha_vantage_key = os.getenv("ALPHA_VANTAGE_API_KEY")
 
-# OpenAI client
-client = openai.OpenAI()
+st.set_page_config(page_title="Test Chat App", page_icon="💬", layout="wide")
 
-# ---- Utility Functions ----
+# ------------------ Session State ------------------
+if 'logged_in' not in st.session_state:
+    st.session_state.logged_in = False
+if 'user_id' not in st.session_state:
+    st.session_state.user_id = None
+if 'current_chat' not in st.session_state:
+    st.session_state.current_chat = None
+if 'chat_buffer' not in st.session_state:
+    st.session_state.chat_buffer = []
 
-def get_stock_daily(symbol: str) -> dict:
-    url = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={symbol}&apikey={alpha_vantage_key}'
-    r = requests.get(url)
-    data = r.json()
-    if "Time Series (Daily)" not in data:
-        return {"error": "Unable to retrieve stock data. Please check the symbol."}
-    latest_date = next(iter(data["Time Series (Daily)"]))
-    latest_data = data["Time Series (Daily)"][latest_date]
-    return {
-        "symbol": symbol.upper(),
-        "date": latest_date,
-        "open": latest_data["1. open"],
-        "high": latest_data["2. high"],
-        "low": latest_data["3. low"],
-        "close": latest_data["4. close"],
-        "volume": latest_data["5. volume"],
-    }
+# ------------------ Login/Register ------------------
+def login_ui():
+    st.title("Login / Register")
 
-def get_crypto_price(coin: str, currency: str) -> dict:
-    url = f"https://api.coingecko.com/api/v3/simple/price"
-    params = {"ids": coin.lower(), "vs_currencies": currency.lower()}
-    response = requests.get(url, params=params)
-    data = response.json()
-    if coin.lower() not in data:
-        return {"error": "Invalid coin or data unavailable"}
-    return {
-        "coin": coin,
-        "currency": currency,
-        "price": data[coin.lower()][currency.lower()]
-    }
+    tab1, tab2 = st.tabs(["Login", "Register"])
 
-function_definitions = [
-    {
-        "name": "get_stock_daily",
-        "description": "Get the most recent daily stock data for a given symbol",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "symbol": {
-                    "type": "string",
-                    "description": "Stock ticker symbol, e.g. 'AAPL'"
-                }
-            },
-            "required": ["symbol"]
-        }
-    },
-    {
-        "name": "get_crypto_price",
-        "description": "Get the latest price for a cryptocurrency in a given fiat currency",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "coin": {
-                    "type": "string",
-                    "description": "Name of the crypto coin, e.g. 'bitcoin'"
-                },
-                "currency": {
-                    "type": "string",
-                    "description": "Fiat currency, e.g. 'usd', 'eur', 'nis'"
-                }
-            },
-            "required": ["coin", "currency"]
-        }
-    }
-]
+    with tab1:
+        email = st.text_input("Email")
+        password = st.text_input("Password", type="password")
+        if st.button("Login"):
+            user = db.get_user_by_email(email)
+            if user and user[2] == password:
+                st.session_state.logged_in = True
+                st.session_state.user_id = user[0]
+                st.rerun()
+            else:
+                st.error("Invalid credentials")
 
-tools = {
-    "get_stock_daily": get_stock_daily,
-    "get_crypto_price": get_crypto_price
-}
+    with tab2:
+        name = st.text_input("Name")
+        email = st.text_input("Register Email")
+        password = st.text_input("Register Password", type="password")
+        if st.button("Register"):
+            try:
+                db.insert_user(name, password, email)
+                st.success("Registered successfully! Please login.")
+            except Exception as e:
+                st.error("Error registering: " + str(e))
 
-def log_interaction(user_input, ai_reply):
-    today = datetime.date.today().strftime("%Y-%m-%d")
-    log_path = os.path.join(LOG_DIR, f"chat_log_{today}.csv")
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    file_exists = os.path.isfile(log_path)
+# ------------------ Conversation with LLM ------------------
+def conversation(chat_id, prompt):
+    url = f"https://n8n.ultimaisolutions.com/webhook/4ab6c778-6fe2-4c8a-82d8-5874fd41b289/4ab6c778-6fe2-4c8a-82d8-5874fd41b289/{chat_id}/{prompt}"
     try:
-        with open(log_path, "a", newline="", encoding="utf-8") as csvfile:
-            writer = csv.writer(csvfile)
-            if not file_exists:
-                writer.writerow(["timestamp", "user_input", "ai_reply"])
-            writer.writerow([timestamp, user_input, ai_reply])
-    except Exception as e:
-        st.error(f"Failed to log interaction: {e}")
+        response = requests.get(url)
+        response.raise_for_status()
+        result = response.json()
+        return result.get("output", "[Error: No output in response]")
+    except requests.exceptions.RequestException as e:
+        print("Error while calling the API:", e)
+        return "Sorry, there was an error contacting the LLM."
 
-def run_conversation(user_input):
-    messages = [{"role": "user", "content": user_input}]
-    response = client.chat.completions.create(
-        model="gpt-4-0613",
-        messages=messages,
-        functions=function_definitions,
-        function_call="auto"
-    )
-    message = response.choices[0].message
 
-    if message.function_call:
-        func_name = message.function_call.name
-        args = json.loads(message.function_call.arguments)
-        if func_name in tools:
-            result = tools[func_name](**args)
-            messages.append(message)
-            messages.append({
-                "role": "function",
-                "name": func_name,
-                "content": json.dumps(result)
-            })
-            followup = client.chat.completions.create(
-                model="gpt-4-0613",
-                messages=messages
-            )
-            reply = followup.choices[0].message.content
-        else:
-            reply = f"Function '{func_name}' not recognized."
-    else:
-        reply = message.content
+# ------------------ Chat UI ------------------
+def chat_ui():
+    st.sidebar.title("💬 Your Chats")
+    chats = db.get_user_chats(st.session_state.user_id)
 
-    log_interaction(user_input, reply)
-    return reply
+    if st.sidebar.button("➕ New Chat"):
+        chat_id = db.insert_chat(st.session_state.user_id)
+        st.session_state.current_chat = chat_id
+        st.session_state.chat_buffer = []
+        st.rerun()
 
-# ---- Session State ----
+    for chat in chats:
+        chat_id = chat[0]
+        chat_name = f"Chat {chat_id}"
+        col1, col2 = st.sidebar.columns([4, 1])
+        if col1.button(chat_name, key=f"chat-{chat_id}"):
+            st.session_state.current_chat = chat_id
+            st.session_state.chat_buffer = []
+            st.rerun()
+        if col2.button("🗑️", key=f"delete-{chat_id}"):
+            db.delete_chat(chat_id)
+            if st.session_state.current_chat == chat_id:
+                st.session_state.current_chat = None
+            st.rerun()
 
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
+    if st.session_state.current_chat:
+        st.title(f"🗨️ Chat {st.session_state.current_chat}")
 
-# ---- Chat Display ----
+        # Load and display previous messages
+        messages = db.get_chat_messages(st.session_state.current_chat)
 
-for entry in st.session_state.chat_history:
-    with st.chat_message("user"):
-        st.markdown(entry["user"])
-    with st.chat_message("assistant"):
-        st.markdown(entry["bot"])
+        for row in messages:
+            parsed = row[0]  # This is already a dict
 
-# ---- Chat Input ----
+            # Determine sender type
+            sender = "assistant" if parsed.get("type") == "ai" else "user"
+            content = parsed.get("content", "")
 
-user_prompt = st.chat_input("Ask me anything...")
+            with st.chat_message(sender):
+                st.markdown(content)
 
-if user_prompt:
-    with st.chat_message("user"):
-        st.markdown(user_prompt)
+        for sender, msg in st.session_state.chat_buffer:
+            with st.chat_message(sender):
+                st.markdown(msg)
 
-    with st.spinner("🤖 Thinking..."):
-        bot_response = run_conversation(user_prompt)
+        # Handle user input
+        if prompt := st.chat_input("Send a message"):
+            timestamp = datetime.datetime.now()
 
-    with st.chat_message("assistant"):
-        st.markdown(bot_response)
+            # Show user message
+            st.session_state.chat_buffer.append(("user", prompt))
+            with st.chat_message("user"):
+                st.markdown(prompt)
 
-    # Store in history
-    st.session_state.chat_history.append({
-        "user": user_prompt,
-        "bot": bot_response
-    })
+            with st.spinner("Thinking..."):
+                response = conversation(st.session_state.current_chat, prompt)
+
+            # Show assistant response
+            st.session_state.chat_buffer.append(("assistant", response))
+            with st.chat_message("assistant"):
+                st.markdown(response)
+
+            # Clear buffer
+            st.session_state.chat_buffer = []
+
+# ------------------ Main ------------------
+if not st.session_state.logged_in:
+    login_ui()
+else:
+    chat_ui()
