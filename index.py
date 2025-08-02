@@ -52,7 +52,7 @@ def login_ui():
 
 # ------------------ Conversation with LLM ------------------
 def conversation(chat_id, prompt):
-    url = f"https://n8n.ultimaisolutions.com/webhook/4ab6c778-6fe2-4c8a-82d8-5874fd41b289/4ab6c778-6fe2-4c8a-82d8-5874fd41b289/{chat_id}/{prompt}"
+    url = f"{os.getenv("N8N_WEBHOOK_URL")}/{chat_id}/{prompt}"
     try:
         response = requests.get(url)
         response.raise_for_status()
