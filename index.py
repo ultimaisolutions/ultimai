@@ -4,7 +4,10 @@ import datetime
 import os
 import dotenv
 import requests
-import json
+import pandas as pd
+from io import StringIO
+from PyDesmos import Graph
+import streamlit.components.v1 as components
 
 # Load API keys (if needed for other services)
 dotenv.load_dotenv()
@@ -57,8 +60,15 @@ def conversation(chat_id, prompt):
     try:
         response = requests.get(url)
         response.raise_for_status()
-        result = response.json()
-        return result.get("output", "[Error: No output in response]")
+
+        # Try to parse as JSON, fallback to raw text (CSV)
+        try:
+            result = response.json()
+            return result.get("output", "[Error: No output in response]")
+        except ValueError:
+            # Not JSON — assume it's raw CSV
+            return response.text
+
     except requests.exceptions.RequestException as e:
         print("Error while calling the API:", e)
         return "Sorry, there was an error contacting the LLM."
@@ -120,14 +130,49 @@ def chat_ui():
 
             with st.spinner("Thinking..."):
                 response = conversation(st.session_state.current_chat, prompt)
+                visualize(response)
 
-            # Show assistant response
             st.session_state.chat_buffer.append(("assistant", response))
             with st.chat_message("assistant"):
                 st.markdown(response)
 
+            #with st.chat_message("assistant"):
+            #    # Check if response looks like a CSV
+            #    if "x" in response and "y" in response and "," in response:
+            #        visualize(response)
+            #    else:
+            #        st.markdown(response)
+
             # Clear buffer
+            st.rerun()
             st.session_state.chat_buffer = []
+# ------------------ Visualization ------------------
+def visualize(response):
+    try:
+        # Decode BOM if present
+        csv_clean = response.encode('utf-8').decode('utf-8-sig')
+        df = pd.read_csv(StringIO(csv_clean))
+
+        if not {'x', 'y'}.issubset(df.columns):
+            st.warning("CSV must contain 'x' and 'y' columns.")
+            return
+
+        x_vals = df['x'].tolist()
+        y_vals = df['y'].tolist()
+
+
+        with Graph("StreamlitGraph") as G:
+            #G(x=x_vals, y=y_vals)
+            G.new_table({'x': x_vals, 'y': y_vals})
+            
+
+        #For Future use for visualization inside the chat
+        #st.subheader("📊 Visualized Coordinates")
+        #components.iframe(desmos_url, height=500)
+
+    except Exception as e:
+        st.error(f"Visualization failed: {e}")
+
 
 # ------------------ Main ------------------
 if not st.session_state.logged_in:
