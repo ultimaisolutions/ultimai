@@ -144,8 +144,8 @@ def chat_ui():
             #        st.markdown(response)
 
             # Clear buffer
-            st.rerun()
             st.session_state.chat_buffer = []
+            st.rerun()
 # ------------------ Visualization ------------------
 def visualize(response):
     try:
