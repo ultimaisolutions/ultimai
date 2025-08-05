@@ -3,5 +3,5 @@ requests
 pandas
 python-dotenv
 PyDesmos
-psycopg2
+psycopg2-binary
 #pip install -r requirements.txt
