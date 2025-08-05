@@ -130,7 +130,7 @@ def chat_ui():
 
             with st.spinner("Thinking..."):
                 response = conversation(st.session_state.current_chat, prompt)
-                visualize(response)
+                #visualize(response)
 
             st.session_state.chat_buffer.append(("assistant", response))
             with st.chat_message("assistant"):
@@ -152,10 +152,6 @@ def visualize(response):
         # Decode BOM if present
         csv_clean = response.encode('utf-8').decode('utf-8-sig')
         df = pd.read_csv(StringIO(csv_clean))
-
-        if not {'x', 'y'}.issubset(df.columns):
-            st.warning("CSV must contain 'x' and 'y' columns.")
-            return
 
         x_vals = df['x'].tolist()
         y_vals = df['y'].tolist()
