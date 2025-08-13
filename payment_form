@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>טופס הזמנה ותשלום</title>
+
+  <!-- Flatpickr (datepicker) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/he.js"></script>
+
+  <style>
+    :root{--bg:#0b1324;--panel:#111a2f;--accent:#48b3ff;--accent-2:#19c37d;--muted:#a9b3c4;--text:#e9eef8;--danger:#ff6b6b;--radius:16px}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,"Segoe UI",Arial,sans-serif;background:linear-gradient(180deg,#0b1324 0%, #0f1730 100%);color:var(--text);padding:24px}
+    .wrap{max-width:880px;margin:0 auto;position:relative}
+    .card{background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(6px);padding:24px;border-radius:var(--radius);box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    h1{margin:0 0 16px;font-size:28px}
+    p.lead{margin-top:0;color:var(--muted)}
+    .grid{display:grid;gap:16px}
+    @media (min-width:680px){.grid.cols-2{grid-template-columns:1fr 1fr}}
+    label{display:block;font-weight:600;margin-bottom:6px}
+    input,select,textarea{width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.15);background:#0c1430;color:var(--text);outline:none;transition:border .2s,box-shadow .2s}
+    input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(72,179,255,.2)}
+    input.invalid{border-color:var(--danger)!important;box-shadow:0 0 0 3px rgba(255,107,107,.2)!important}
+    .field-error{display:none;margin-top:6px;color:#ffb3b3;font-size:13px}
+    .field-error.show{display:block}
+
+    .addons-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .addon{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:10px;padding:12px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:#0c1430;min-height:48px}
+    .addon input[type="checkbox"]{inline-size:18px;block-size:18px;margin:0}
+
+    .actions{display:flex;gap:12px;align-items:center;margin-top:8px}
+    button{appearance:none;border:0;padding:12px 18px;border-radius:14px;font-weight:700;cursor:pointer;background:linear-gradient(90deg,var(--accent),#60d5ff);color:#051221;box-shadow:0 6px 20px rgba(72,179,255,.35)}
+    button[disabled]{opacity:.6;cursor:not-allowed;box-shadow:none}
+    .ghost{background:transparent;border:1px solid rgba(255,255,255,.25);color:var(--text)}
+
+    .msg{margin-top:16px;padding:12px 14px;border-radius:12px;display:none}
+    .msg.show{display:block}
+    .msg.ok{background:rgba(25,195,125,.1);border:1px solid rgba(25,195,125,.4)}
+    .msg.err{background:rgba(255,107,107,.1);border:1px solid rgba(255,107,107,.35)}
+
+    .summary{margin-top:12px;padding:14px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:#0c1430}
+    .summary h3{margin:0 0 8px;font-size:18px}
+    .summary .line{display:flex;justify-content:space-between;margin:4px 0;color:var(--muted)}
+    .summary .total{font-weight:800;color:var(--text);font-size:18px;margin-top:8px}
+
+    .timer{position:fixed;top:14px;left:14px;z-index:50;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.25);padding:8px 12px;border-radius:999px;backdrop-filter:blur(6px);font-weight:700}
+    .timer.soon{background:rgba(255,107,107,.15);border-color:rgba(255,107,107,.5)}
+  </style>
+</head>
+<body>
+  <!-- ⏳ Countdown -->
+  <div id="timer" class="timer">⏳ הזמן הנותר לשמירת החדר: <span id="timeLeft">10:00</span></div>
+
+  <div class="wrap">
+    <div class="card">
+      <h1>💳 תהליך הזמנה ותשלום</h1>
+      <p class="lead">אנא מלאו את פרטיכם למטה על מנת להשלים את תהליך ההזמנה</p>
+
+      <form id="orderForm" novalidate>
+        <div class="grid cols-2">
+          <div>
+            <label class="required">שם מלא</label>
+            <input name="customerName" required placeholder="לדוגמה: יעל כהן" />
+          </div>
+          <div>
+            <label class="required">אימייל</label>
+            <input name="email" type="email" required placeholder="you@example.com" />
+          </div>
+
+          <div>
+            <label class="required">טלפון</label>
+            <input name="phone" type="tel" required placeholder="05X-XXXXXXX" />
+          </div>
+          <div>
+            <label>סוג הזמנה</label>
+            <select name="orderType"><option value="צימר">צימר</option></select>
+          </div>
+
+          <!-- תאריכים עם Datepicker (DD/MM/YYYY) -->
+          <div>
+            <label class="required">תאריך הגעה (DD/MM/YYYY)</label>
+            <input name="checkIn" id="checkIn" type="text" placeholder="dd/mm/yyyy" required />
+          </div>
+          <div>
+            <label class="required">תאריך עזיבה (DD/MM/YYYY)</label>
+            <input name="checkOut" id="checkOut" type="text" placeholder="dd/mm/yyyy" required />
+          </div>
+          <div class="grid" style="grid-column:1 / -1">
+            <span id="dateError" class="field-error">תאריך לא תקין: הזינו בפורמט DD/MM/YYYY, ולא ניתן לבחור תאריך בעבר.</span>
+          </div>
+
+          <div>
+            <label class="required">מספר אורחים</label>
+            <input name="guests" id="guests" type="number" min="1" step="1" required value="2" />
+          </div>
+          <div>
+            <label>תשלום אונליין</label>
+            <select name="paymentMethod">
+              <option value="אשראי">אשראי</option>
+              <option value="ביט">ביט</option>
+              <option value="העברה בנקאית">העברה בנקאית</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="margin-top:8px">
+          <label>תוספות</label>
+          <div class="addons-grid">
+            <label class="addon"><input type="checkbox" id="jacuzzi" name="addons" value="ג׳קוזי" /> ג׳קוזי</label>
+            <label class="addon"><input type="checkbox" id="massage" name="addons" value="עיסוי" /> עיסוי</label>
+
+            <label class="addon">
+              <input type="checkbox" id="lateCheckout" name="addons" value="יציאה מאוחרת" />
+              יציאה מאוחרת
+            </label>
+            <div class="addon" id="lateHoursWrap" style="display:none">
+              <input type="number" id="lateHours" min="1" step="1" value="1" style="width:80px" />
+              <span>שעות יציאה מאוחרת</span>
+            </div>
+
+            <label class="addon"><input type="checkbox" id="breakfast" name="addons" value="ארוחת בוקר" /> ארוחת בוקר</label>
+          </div>
+        </div>
+
+        <div style="margin-top:8px">
+          <label>פרטים/בקשות מיוחדות</label>
+          <textarea name="notes" rows="4" placeholder="אלרגיות, שעות הגעה משוערות, העדפות וכו׳"></textarea>
+        </div>
+
+        <!-- סיכום מחיר -->
+        <div class="summary" id="summary">
+          <h3>סיכום מחיר</h3>
+          <div class="line"><span>לינות (₪500 ללילה לאדם)</span><span id="lineNights">₪0</span></div>
+          <div class="line"><span>ג׳קוזי</span><span id="lineJacuzzi">₪0</span></div>
+          <div class="line"><span>יציאה מאוחרת</span><span id="lineLate">₪0</span></div>
+          <div class="line"><span>עיסוי</span><span id="lineMassage">₪0</span></div>
+          <div class="line"><span>ארוחת בוקר (₪150 לאדם)</span><span id="lineBreakfast">₪0</span></div>
+          <div class="total">סה״כ לתשלום: <span id="grandTotal">₪0</span></div>
+        </div>
+
+        <div class="actions">
+          <button id="submitBtn" type="submit">שליחה</button>
+          <button class="ghost" type="reset" id="resetBtn">איפוס</button>
+        </div>
+
+        <div id="ok"  class="msg ok"  aria-live="polite">✅ ההזמנה נשלחה בהצלחה. נחזור אליך בהקדם.</div>
+        <div id="err" class="msg err" aria-live="polite">❌ אופס! אירעה שגיאה בשליחה</div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const WEBHOOK_URL = "https://example.com/your-webhook"; // ← החלף לכתובת האמיתית
+
+    // ========== COUNTDOWN (10 minutes) ==========
+    const timerEl = document.getElementById("timer");
+    const timeLeftEl = document.getElementById("timeLeft");
+    const submitBtn = document.getElementById("submitBtn");
+    let seconds = 10 * 60;
+    function renderTime(){ const m=String(Math.floor(seconds/60)).padStart(2,'0'); const s=String(seconds%60).padStart(2,'0'); timeLeftEl.textContent=`${m}:${s}`; timerEl.classList.toggle('soon',seconds<=120) }
+    const interval=setInterval(()=>{ seconds--; if(seconds<=0){clearInterval(interval); timeLeftEl.textContent="00:00"; timerEl.textContent="⏳ הזמן הסתיים — מהרו לסגור"; submitBtn.disabled=true; return;} renderTime();},1000); renderTime();
+
+    // ========== DATE HELPERS (DD/MM/YYYY) ==========
+    const checkInEl = document.getElementById("checkIn");
+    const checkOutEl = document.getElementById("checkOut");
+    const dateErr = document.getElementById("dateError");
+
+    function parseDMY(str){
+      const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(str);
+      if(!m) return null;
+      const [_, dd, mm, yyyy] = m;
+      const d = new Date(Number(yyyy), Number(mm)-1, Number(dd));
+      if(d.getFullYear()!==+yyyy || d.getMonth()!==Number(mm)-1 || d.getDate()!==+dd) return null;
+      d.setHours(0,0,0,0);
+      return d;
+    }
+    const fmtDMY = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+    const startOfToday = () => { const d=new Date(); d.setHours(0,0,0,0); return d; };
+    const addDays = (d,days)=>{ const x=new Date(d); x.setDate(x.getDate()+days); x.setHours(0,0,0,0); return x; };
+    function nightsBetweenDMY(aStr,bStr){ const A=parseDMY(aStr), B=parseDMY(bStr); if(!A||!B) return 0; const diff=B-A; if(diff<=0) return 0; return Math.ceil(diff/86400000); }
+
+    function validateDates(showMsg=true){
+      const inD = parseDMY(checkInEl.value);
+      const outD = parseDMY(checkOutEl.value);
+      let ok=true, msg='';
+      const today = startOfToday();
+      if(!inD || !outD){ ok=false; msg='תאריך לא תקין: הזינו בפורמט DD/MM/YYYY.'; }
+      if(ok && (inD < today || outD < today)){ ok=false; msg='לא ניתן לבחור תאריך בעבר.'; }
+      if(ok && !(outD > inD)){ ok=false; msg='תאריך העזיבה חייב להיות אחרי תאריך ההגעה.'; }
+      if(!ok && showMsg){ dateErr.textContent=msg; dateErr.classList.add('show'); checkInEl.classList.toggle('invalid', !inD || inD<today); checkOutEl.classList.toggle('invalid', !outD || outD<= (inD||today)); }
+      else { dateErr.classList.remove('show'); checkInEl.classList.remove('invalid'); checkOutEl.classList.remove('invalid'); }
+      return ok;
+    }
+
+    // ========== Flatpickr Init ==========
+    let checkInPicker, checkOutPicker;
+    document.addEventListener('DOMContentLoaded', () => {
+      const today = startOfToday();
+
+      checkInPicker = flatpickr(checkInEl, {
+        locale: flatpickr.l10ns.he,
+        dateFormat: "d/m/Y",
+        minDate: today,
+        disableMobile: true,
+        onChange: ([date]) => {
+          if (!date) return;
+          const minOut = addDays(date, 1);
+          checkOutPicker.set('minDate', minOut);
+          // אם תאריך העזיבה קודם – נזיז אותו ליום שאחרי
+          const outD = parseDMY(checkOutEl.value);
+          if (!outD || outD <= date) {
+            checkOutPicker.setDate(minOut, true, "d/m/Y");
+          }
+          validateDates(false);
+          updatePrice();
+        }
+      });
+
+      checkOutPicker = flatpickr(checkOutEl, {
+        locale: flatpickr.l10ns.he,
+        dateFormat: "d/m/Y",
+        minDate: addDays(today,1),
+        disableMobile: true,
+        onChange: () => { validateDates(false); updatePrice(); }
+      });
+    });
+
+    // ========== PRICE CALC ==========
+    const PRICE = { perNightPerPerson: 500, jacuzzi: 100, massage: 400, latePerHour: 200, breakfastPerPerson: 150 };
+    const ids = (x)=>document.getElementById(x);
+    const guests=ids("guests");
+    const jacuzzi=ids("jacuzzi"), massage=ids("massage"), breakfast=ids("breakfast");
+    const lateCheckout=ids("lateCheckout"), lateHours=ids("lateHours"), lateHoursWrap=ids("lateHoursWrap");
+    const lineNights=ids("lineNights"), lineJacuzzi=ids("lineJacuzzi"), lineLate=ids("lineLate"),
+          lineMassage=ids("lineMassage"), lineBreakfast=ids("lineBreakfast"), grandTotal=ids("grandTotal");
+    const fmtCurrency = n => `₪${(Math.max(0, Math.round(n*100)/100)).toLocaleString('he-IL')}`;
+    let lastTotal = 0;
+
+    function updatePrice(){
+      const n = nightsBetweenDMY(checkInEl.value, checkOutEl.value);
+      const g = Math.max(0, Number(guests.value||0));
+      const base = n * g * PRICE.perNightPerPerson;
+
+      const addJacuzzi = jacuzzi.checked ? PRICE.jacuzzi : 0;
+      const addMassage = massage.checked ? PRICE.massage : 0;
+      const addLate = lateCheckout.checked ? Math.max(0, Number(lateHours.value||0)) * PRICE.latePerHour : 0;
+      const addBreakfast = breakfast.checked ? g * PRICE.breakfastPerPerson : 0;
+
+      lineNights.textContent   = fmtCurrency(base);
+      lineJacuzzi.textContent  = fmtCurrency(addJacuzzi);
+      lineLate.textContent     = fmtCurrency(addLate);
+      lineMassage.textContent  = fmtCurrency(addMassage);
+      lineBreakfast.textContent= fmtCurrency(addBreakfast);
+
+      const total = base + addJacuzzi + addMassage + addLate + addBreakfast;
+      grandTotal.textContent = fmtCurrency(total);
+      lastTotal = total;
+    }
+
+    [guests, jacuzzi, massage, breakfast, lateCheckout, (document.getElementById("lateHours")||{})].forEach(el=>{
+      if(!el) return; el.addEventListener('change', updatePrice); el.addEventListener('input', updatePrice);
+    });
+    lateCheckout.addEventListener('change', ()=>{ lateHoursWrap.style.display = lateCheckout.checked ? 'grid' : 'none'; updatePrice(); });
+
+    // ========== SUBMIT / MESSAGES ==========
+    const form = document.getElementById("orderForm");
+    const okMsg  = document.getElementById("ok");
+    const errMsg = document.getElementById("err");
+    const resetBtn = document.getElementById("resetBtn");
+    okMsg.classList.remove("show"); errMsg.classList.remove("show");
+
+    resetBtn.addEventListener("click", () => {
+      okMsg.classList.remove("show"); errMsg.classList.remove("show");
+      checkInEl.classList.remove('invalid'); checkOutEl.classList.remove('invalid'); dateErr.classList.remove('show');
+      updatePrice();
+    });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      okMsg.classList.remove("show"); errMsg.classList.remove("show");
+
+      if (submitBtn.disabled) { errMsg.textContent = "❌ אופס! אירעה שגיאה בשליחה"; errMsg.classList.add("show"); return; }
+      if (!validateDates(true)) return;
+      if (!form.reportValidity()) return;
+
+      const data = new FormData(form);
+      const addons = [];
+      if (jacuzzi.checked) addons.push("ג׳קוזי");
+      if (massage.checked) addons.push("עיסוי");
+      if (lateCheckout.checked) addons.push(`יציאה מאוחרת ${document.getElementById("lateHours").value} שעות`);
+      if (breakfast.checked) addons.push("ארוחת בוקר");
+
+      const payload = {
+        event: "order_created",
+        timestamp: new Date().toISOString(),
+        source: { system: "booking-form", version: "1.4" },
+        order: {
+          customerName: data.get("customerName")?.trim() || "",
+          email: data.get("email")?.trim() || "",
+          phone: data.get("phone")?.trim() || "",
+          orderType: "צימר",
+          checkIn: data.get("checkIn") || "",
+          checkOut: data.get("checkOut") || "",
+          guests: Number(data.get("guests") || 0),
+          payment: { method: data.get("paymentMethod") || "", amount: lastTotal, currency: "ILS" },
+          addons,
+          notes: data.get("notes")?.trim() || ""
+        }
+      };
+
+      submitBtn.disabled = true;
+      const original = submitBtn.textContent;
+      submitBtn.textContent = "שולח...";
+
+      try {
+        const res = await fetch(WEBHOOK_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error("Bad status " + res.status);
+        okMsg.classList.add("show");
+        form.reset();
+        lateHoursWrap.style.display = "none";
+        updatePrice();
+      } catch (err) {
+        errMsg.textContent = "❌ אופס! אירעה שגיאה בשליחה";
+        errMsg.classList.add("show");
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = original;
+      }
+    });
+
+    // init once
+    updatePrice();
+  </script>
+</body>
+</html>
